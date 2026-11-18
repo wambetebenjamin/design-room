@@ -229,6 +229,11 @@ textarea {
   cursor: pointer;
 }
 
+.import-btn.is-busy {
+  opacity: 0.6;
+  cursor: progress;
+}
+
 .banner {
   background: var(--accent-soft);
   border: 1px solid #bfe9e4;
@@ -381,6 +386,10 @@ textarea {
 
 .empty-actions {
   margin-top: 22px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .empty-art {
@@ -787,6 +796,107 @@ textarea {
   font-family: var(--font-ui);
   font-size: 11.5px;
   margin-left: 6px;
+}
+
+/* Font gallery */
+
+.font-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.font-cat-title {
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+
+.font-cat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.font-card {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 10px 8px 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.font-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.font-card.is-active {
+  border-color: var(--accent-strong);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-strong);
+}
+
+.font-card-aa {
+  font-size: 30px;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.font-card-name {
+  font-family: var(--font-ui) !important;
+  font-size: 11px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.font-select {
+  max-width: 180px;
+  font-size: 14px !important;
+}
+
+/* Logo library */
+
+.logo-tile {
+  background:
+    repeating-conic-gradient(#e8ecf0 0% 25%, #ffffff 0% 50%) 0 0 / 16px 16px;
+  display: grid;
+  place-items: center;
+}
+
+.logo-tile img {
+  object-fit: contain;
+  background: transparent;
+}
+
+.logo-grid .asset-tile {
+  aspect-ratio: 4 / 3;
+}
+
+/* Export readout */
+
+.panel-readout {
+  color: var(--ink-2);
+}
+
+.panel-readout strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.readout-cap {
+  color: var(--ink-3);
 }
 
 /* Elements tab */

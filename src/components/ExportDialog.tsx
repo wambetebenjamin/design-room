@@ -7,9 +7,13 @@ import {
   exportAllPagesZip,
   exportJson,
   exportPageImage,
+  maxScaleFor,
+  validateExportScale,
   type ExportProgress,
   type ImageFormat,
 } from '../export/exportImage';
+
+const SCALE_OPTIONS = [1, 2, 3, 4, 6, 8];
 
 interface Props {
   onClose: () => void;
@@ -42,6 +46,11 @@ export function ExportDialog({ onClose }: Props) {
     doc.pages.findIndex((p) => p.id === currentPageId),
   );
   const totalPages = doc.pages.length;
+  const maxScale = maxScaleFor(doc.design.width, doc.design.height);
+  const effScale = Math.min(scale, maxScale);
+  const outW = Math.round(doc.design.width * effScale);
+  const outH = Math.round(doc.design.height * effScale);
+  const outMP = ((outW * outH) / 1e6).toFixed(1);
 
   const run = async () => {
     setError(null);
@@ -51,10 +60,12 @@ export function ExportDialog({ onClose }: Props) {
         exportJson(doc);
         toast('success', 'Document JSON downloaded.');
       } else if (scope === 'current') {
-        await exportPageImage(doc, pageIndex, format, scale, setProgress);
+        validateExportScale(doc.design.width, doc.design.height, effScale);
+        await exportPageImage(doc, pageIndex, format, effScale, setProgress);
         toast('success', 'Image downloaded.');
       } else {
-        await exportAllPagesZip(doc, format, scale, setProgress);
+        validateExportScale(doc.design.width, doc.design.height, effScale);
+        await exportAllPagesZip(doc, format, effScale, setProgress);
         toast('success', 'ZIP downloaded.');
       }
       onClose();
@@ -141,23 +152,27 @@ export function ExportDialog({ onClose }: Props) {
             </fieldset>
 
             <fieldset className="modal-fieldset">
-              <legend>Scale</legend>
+              <legend>High-definition scale</legend>
               <div className="btn-group">
-                {[1, 2, 3, 4].map((s) => (
+                {SCALE_OPTIONS.map((s) => (
                   <button
                     key={s}
                     type="button"
-                    className={`btn ${scale === s ? 'btn-primary' : 'btn-ghost'}`}
-                    aria-pressed={scale === s}
+                    className={`btn ${effScale === s ? 'btn-primary' : 'btn-ghost'}`}
+                    aria-pressed={effScale === s}
                     onClick={() => setScale(s)}
-                    disabled={progress !== null}
+                    disabled={progress !== null || s > maxScale}
+                    title={s > maxScale ? 'Exceeds the browser canvas limit for this page size' : `${s}× scale`}
                   >
                     {s}×
                   </button>
                 ))}
               </div>
-              <p className="panel-note">
-                Output: {Math.round(doc.design.width * scale)} × {Math.round(doc.design.height * scale)} px
+              <p className="panel-note panel-readout">
+                Output: <strong>{outW} × {outH} px</strong> · {outMP} MP
+                {maxScale < 8 && (
+                  <span className="readout-cap"> (max {maxScale}× for this page size)</span>
+                )}
               </p>
             </fieldset>
           </>

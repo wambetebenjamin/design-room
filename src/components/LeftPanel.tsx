@@ -1,24 +1,33 @@
 // Left library: templates, text, elements, uploads and style.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { TEMPLATES, FONTS } from '../domain/templates';
+import { TEMPLATES, FONTS, FONT_CATEGORIES, nearestWeight } from '../domain/templates';
+import type { TextStyle } from '../domain/types';
 import { PALETTES } from '../domain/palettes';
 import type { TemplateDef } from '../domain/types';
-import { useEditor, uploadImageFile } from '../store/editorStore';
+import {
+  useEditor,
+  useSelectedElement,
+  uploadImageFile,
+  uploadLogo,
+  deleteLogo,
+  listLogos,
+} from '../store/editorStore';
 import { StyleControls } from './ContextToolbar';
 import { ElementView, PageBackground } from './ElementView';
 import { starClipPath } from '../domain/shapes';
-import { getImage, useImageVersion } from '../render/imageCache';
+import { getImage, getImageSync, preloadAssets, useImageVersion } from '../render/imageCache';
 import { getByIndex, STORES } from '../data/db';
 import type { Asset } from '../domain/types';
 
-type TabId = 'templates' | 'text' | 'elements' | 'uploads' | 'style';
+type TabId = 'templates' | 'text' | 'uploads' | 'logos' | 'elements' | 'style';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'templates', label: 'Templates' },
   { id: 'text', label: 'Text' },
+  { id: 'uploads', label: 'Images' },
+  { id: 'logos', label: 'Logos' },
   { id: 'elements', label: 'Elements' },
-  { id: 'uploads', label: 'Uploads' },
   { id: 'style', label: 'Style' },
 ];
 
@@ -53,8 +62,9 @@ export function LeftPanel() {
       <div className="panel-body" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === 'templates' && <TemplatesTab />}
         {tab === 'text' && <TextTab />}
-        {tab === 'elements' && <ElementsTab />}
         {tab === 'uploads' && <UploadsTab />}
+        {tab === 'logos' && <LogosTab />}
+        {tab === 'elements' && <ElementsTab />}
         {tab === 'style' && <StyleControls />}
       </div>
     </aside>
@@ -141,6 +151,9 @@ function TemplatesTab() {
 
 function TextTab() {
   const addText = useEditor((s) => s.addText);
+  const selected = useSelectedElement();
+  const patchSelected = useEditor((s) => s.patchSelected);
+  const toast = useEditor((s) => s.toast);
   const doc = useEditor((s) => s.doc);
   const unit = doc ? Math.min(doc.design.width, doc.design.height) : 1080;
 
@@ -149,6 +162,19 @@ function TextTab() {
     { id: 'h2', label: 'Add a subheading', size: Math.round(unit * 0.06), weight: 600, fontFamily: 'Inter', text: 'Add a subheading' },
     { id: 'body', label: 'Add body text', size: Math.round(unit * 0.03), weight: 400, fontFamily: 'Inter', text: 'Add some body text' },
   ];
+
+  const applyFont = (family: string) => {
+    if (!selected || selected.type !== 'text') {
+      toast('info', 'Select a text object first, then tap a font to apply it.');
+      return;
+    }
+    const cur = selected.style as TextStyle;
+    patchSelected({
+      style: { ...cur, fontFamily: family, fontWeight: nearestWeight(family, cur.fontWeight) },
+    });
+  };
+
+  const activeFamily = selected?.type === 'text' ? (selected.style as TextStyle).fontFamily : null;
 
   return (
     <div className="text-tab">
@@ -164,14 +190,34 @@ function TextTab() {
           {p.label}
         </button>
       ))}
-      <h3 className="panel-heading">Fonts in this app</h3>
-      <ul className="font-list">
-        {FONTS.map((f) => (
-          <li key={f.family} style={{ fontFamily: `"${f.family}", sans-serif` }}>
-            {f.family} <small>{f.weights.join(' / ')}</small>
-          </li>
+
+      <h3 className="panel-heading">Font gallery — {FONTS.length} bundled fonts</h3>
+      <p className="panel-note">All openly licensed (OFL), bundled locally. Select text, then tap to apply.</p>
+      <div className="font-gallery">
+        {FONT_CATEGORIES.map((cat) => (
+          <div key={cat} className="font-cat">
+            <h4 className="font-cat-title">{cat}</h4>
+            <div className="font-cat-grid">
+              {FONTS.filter((f) => f.category === cat).map((f) => (
+                <button
+                  key={f.family}
+                  type="button"
+                  className={`font-card${activeFamily === f.family ? ' is-active' : ''}`}
+                  style={{ fontFamily: `"${f.family}", sans-serif` }}
+                  onClick={() => applyFont(f.family)}
+                  aria-pressed={activeFamily === f.family}
+                  title={`Apply ${f.family}`}
+                >
+                  <span className="font-card-aa" aria-hidden="true">
+                    Aa
+                  </span>
+                  <span className="font-card-name">{f.family}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
@@ -370,6 +416,166 @@ function UploadsTab() {
                 aria-label={`Remove upload ${t.name}`}
                 title="Remove upload"
                 onClick={() => void removeAsset(t.id)}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// --- Logos -----------------------------------------------------------------
+
+interface LogoTile {
+  id: string;
+  name: string;
+  url: string;
+  width: number;
+  height: number;
+}
+
+function LogosTab() {
+  const addLogoElement = useEditor((s) => s.addLogoElement);
+  const toast = useEditor((s) => s.toast);
+  const askConfirm = useEditor((s) => s.askConfirm);
+  const [tiles, setTiles] = useState<LogoTile[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  useImageVersion();
+
+  const refresh = useCallback(async () => {
+    try {
+      const assets = await listLogos();
+      await preloadAssets(assets);
+      const out: LogoTile[] = [];
+      for (const a of assets) {
+        const img = getImageSync(a.id);
+        out.push({
+          id: a.id,
+          name: a.name,
+          url: img?.src ?? '',
+          width: img?.naturalWidth ?? 0,
+          height: img?.naturalHeight ?? 0,
+        });
+      }
+      setTiles(out.reverse());
+    } catch {
+      /* retried on next action */
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setError(null);
+    setBusy(true);
+    try {
+      for (const file of Array.from(files)) {
+        await uploadLogo(file);
+      }
+      toast('success', files.length === 1 ? 'Logo saved to your library.' : `${files.length} logos saved.`);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed.');
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const placeLogo = (t: LogoTile) => {
+    if (t.width && t.height) addLogoElement(t.id, t.width, t.height);
+    else toast('error', 'That logo is not decoded yet — try again in a moment.');
+  };
+
+  const removeLogo = async (t: LogoTile) => {
+    const ok = await askConfirm(
+      'Remove this logo?',
+      `“${t.name}” will be deleted from your library. Copies already placed in designs will show as unavailable.`,
+      'Remove',
+    );
+    if (!ok) return;
+    try {
+      await deleteLogo(t.id);
+      await refresh();
+      toast('success', 'Logo removed.');
+    } catch (e) {
+      toast('error', e instanceof Error ? e.message : 'Could not remove that logo.');
+    }
+  };
+
+  return (
+    <div className="logos-tab">
+      <p className="panel-note">
+        Your logo library is shared across every design. Upload once, then tap a logo to place it.
+      </p>
+
+      <div
+        className={`dropzone${dragOver ? ' is-over' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          void handleFiles(e.dataTransfer.files);
+        }}
+      >
+        <p>{busy ? 'Saving…' : 'Drop your logo here, or'}</p>
+        <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => fileRef.current?.click()}>
+          {busy ? 'Saving…' : 'Choose logo file'}
+        </button>
+        <p className="panel-note">Transparent PNG works best · max 15 MB</p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          multiple
+          className="sr-only"
+          aria-label="Upload logo files"
+          onChange={(e) => void handleFiles(e.target.files)}
+        />
+      </div>
+
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+
+      {tiles.length === 0 ? (
+        <div className="empty-mini">
+          <p>No logos yet.</p>
+          <p className="panel-note">Upload your brand mark to reuse it across designs.</p>
+        </div>
+      ) : (
+        <ul className="asset-grid logo-grid">
+          {tiles.map((t) => (
+            <li key={t.id}>
+              <button
+                type="button"
+                className="asset-tile logo-tile"
+                title={`Place ${t.name} on the page`}
+                onClick={() => placeLogo(t)}
+              >
+                {t.url ? <img src={t.url} alt={t.name} /> : <span className="asset-fallback">{t.name}</span>}
+              </button>
+              <button
+                type="button"
+                className="asset-remove"
+                aria-label={`Remove logo ${t.name}`}
+                title="Remove logo"
+                onClick={() => void removeLogo(t)}
               >
                 ×
               </button>

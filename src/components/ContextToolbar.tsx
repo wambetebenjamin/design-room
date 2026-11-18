@@ -7,7 +7,7 @@ import { fitCropToFrame } from '../domain/crop';
 import { getImageSync } from '../render/imageCache';
 import { useEditor, useSelectedElement, useCurrentPage } from '../store/editorStore';
 import type { Page } from '../domain/types';
-import { FONTS } from '../domain/templates';
+import { FONTS, FONT_CATEGORIES, nearestWeight } from '../domain/templates';
 import { PALETTES, DESIGN_PRESETS } from '../domain/palettes';
 import { backgroundToCss, setBackground } from '../domain/document';
 
@@ -350,14 +350,23 @@ function TextControls({
       <label className="field">
         <span className="sr-only">Font family</span>
         <select
+          className="font-select"
+          style={{ fontFamily: `"${style.fontFamily}", sans-serif` }}
           value={style.fontFamily}
           aria-label="Font family"
-          onChange={(e) => setStyle({ fontFamily: e.target.value })}
+          onChange={(e) => {
+            const family = e.target.value;
+            setStyle({ fontFamily: family, fontWeight: nearestWeight(family, style.fontWeight) });
+          }}
         >
-          {FONTS.map((f) => (
-            <option key={f.family} value={f.family}>
-              {f.label}
-            </option>
+          {FONT_CATEGORIES.map((cat) => (
+            <optgroup key={cat} label={cat}>
+              {FONTS.filter((f) => f.category === cat).map((f) => (
+                <option key={f.family} value={f.family}>
+                  {f.family}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </label>

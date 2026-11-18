@@ -13,6 +13,33 @@ export interface ExportProgress {
   label: string;
 }
 
+/** Raster limits shared by every modern browser's 2D canvas. */
+export const MAX_CANVAS_SIDE = 16384;
+export const MAX_CANVAS_AREA = 268_000_000; // ~16384² safety ceiling
+
+/** Largest whole scale (from the offered set) that still fits the canvas limits. */
+export function maxScaleFor(width: number, height: number, options: number[] = [1, 2, 3, 4, 6, 8]): number {
+  const fit = Math.min(MAX_CANVAS_SIDE / width, MAX_CANVAS_SIDE / height, Math.sqrt(MAX_CANVAS_AREA / (width * height)));
+  const usable = options.filter((s) => s <= fit);
+  return usable.length > 0 ? Math.max(...usable) : 0.5;
+}
+
+/** Validate an export size; throws a friendly, actionable error. */
+export function validateExportScale(width: number, height: number, scale: number): void {
+  const w = Math.round(width * scale);
+  const h = Math.round(height * scale);
+  if (w > MAX_CANVAS_SIDE || h > MAX_CANVAS_SIDE) {
+    throw new Error(
+      `A ${scale}× export would be ${w}×${h}px — over the ${MAX_CANVAS_SIDE}px browser limit. Choose a smaller scale.`,
+    );
+  }
+  if (w * h > MAX_CANVAS_AREA) {
+    throw new Error(
+      `A ${scale}× export would be ${w}×${h}px (${((w * h) / 1e6).toFixed(0)} MP) — too large for one image. Choose a smaller scale.`,
+    );
+  }
+}
+
 function safeFilename(title: string): string {
   const base = title
     .trim()
@@ -63,6 +90,7 @@ export async function exportPageImage(
   const pages = orderedPages(doc);
   const page = pages[pageIndex];
   if (!page) throw new Error('That page no longer exists.');
+  validateExportScale(doc.design.width, doc.design.height, scale);
   onProgress?.({ done: 0, total: 1, label: 'Rendering…' });
   const canvas = renderPageToCanvas(doc, page, scale);
   const blob = await canvasToBlob(canvas, format, 0.92);
@@ -80,6 +108,7 @@ export async function exportAllPagesZip(
 ): Promise<void> {
   const pages = orderedPages(doc);
   if (pages.length === 0) throw new Error('This design has no pages.');
+  validateExportScale(doc.design.width, doc.design.height, scale);
   await ensureFontsLoaded(doc);
   const zip = new JSZip();
   const folder = zip.folder(safeFilename(doc.design.title)) ?? zip;

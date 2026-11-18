@@ -15,8 +15,8 @@ It is not affiliated with, endorsed by, or derived from any existing design serv
 - **IndexedDB** (hand-rolled promise wrapper) — designs, pages, elements, uploads
 - **JSZip** — multi-page ZIP export
 - **Canvas2D renderer** shared with the DOM view for exact-size exports
-- **@fontsource** (OFL-licensed) — Inter, Space Grotesk, Playfair Display, Bebas Neue
-  bundled locally; no runtime third-party requests
+- **@fontsource** (OFL-licensed) — a 22-family font library (sans, serif,
+  display, handwriting, mono) bundled locally; no runtime third-party requests
 - **Vitest** — domain, persistence, history and jsdom integration tests
 
 Domain logic (`src/domain`), data access (`src/data`), state (`src/store`),
@@ -30,7 +30,7 @@ npm install
 npm run dev        # local dev server
 npm run build      # typecheck + production build → dist/
 npm run preview    # serve the production build
-npm test           # 57 unit + integration tests
+npm test           # 71 unit + integration tests
 ```
 
 ## Features
@@ -38,10 +38,19 @@ npm test           # 57 unit + integration tests
 - **Start a design** — social post (1080×1080), story (1080×1920), poster
   (A4 @150 DPI), presentation (1920×1080) or custom size (64–8000 px), blank or
   from one of six original templates rendered from real document data.
+- **Upload a design** — drop an existing PNG/JPEG/WebP poster or post on the
+  home screen; it opens as a full-bleed base layer with the canvas sized to the
+  image, ready for text / image / logo editing on top.
 - **Compose** — text, five geometric shapes, and uploaded PNG/JPEG/WebP images
   (15 MB / 12000 px validation). Move, resize (8 handles, Shift keeps aspect),
   rotate (Shift snaps to 15°), crop images (reposition + rescale inside the
   frame), layer order, and align to page.
+- **Text section** — heading/subheading/body presets plus a gallery of 22
+  bundled OFL fonts grouped by category (sans, serif, display, handwriting,
+  mono); select text and tap a font to apply it.
+- **Logos section** — a logo library shared across every design: upload your
+  brand mark once, tap to place it (aspect-correct, top-center), remove with a
+  confirm.
 - **Typography & style** — font family, size, weight, color, alignment, italic,
   line height, letter spacing; six original color palettes and four page-level
   design presets.
@@ -49,8 +58,10 @@ npm test           # 57 unit + integration tests
   thumbnails, add/duplicate/reorder/delete; grouped undo/redo (one gesture =
   one step) with Ctrl+Z / Ctrl+Shift+Z; autosave with visible status and
   Ctrl+S.
-- **Export** — current page as PNG/JPEG at 1–4× scale, all pages as a ZIP, or a
-  validated portable JSON document (importable from the home screen).
+- **High-definition export** — PNG/JPEG at 1×/2×/3×/4×/6×/8× with a live
+  output readout (pixels + megapixels) and browser-canvas guards
+  (16384 px / ~268 MP ceilings) that suggest the largest safe scale; all pages
+  as a ZIP; validated portable JSON (importable from the home screen).
 
 ## Accessibility & keyboard
 

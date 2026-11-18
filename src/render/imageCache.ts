@@ -28,13 +28,8 @@ function load(blob: Blob): Promise<HTMLImageElement | null> {
   });
 }
 
-export async function preloadDesignAssets(designId: string): Promise<void> {
-  let assets: { id: string; blob: Blob }[];
-  try {
-    assets = await loadDesignAssets(designId);
-  } catch {
-    return;
-  }
+/** Decode and cache arbitrary assets (design uploads, logo library, …). */
+export async function preloadAssets(assets: { id: string; blob: Blob }[]): Promise<void> {
   const pending: Promise<void>[] = [];
   for (const a of assets) {
     if (cache.has(a.id)) continue;
@@ -48,6 +43,16 @@ export async function preloadDesignAssets(designId: string): Promise<void> {
     );
   }
   await Promise.all(pending);
+}
+
+export async function preloadDesignAssets(designId: string): Promise<void> {
+  let assets: { id: string; blob: Blob }[];
+  try {
+    assets = await loadDesignAssets(designId);
+  } catch {
+    return;
+  }
+  await preloadAssets(assets);
 }
 
 export async function getImage(assetId: string): Promise<HTMLImageElement | null> {

@@ -361,9 +361,50 @@ export const TEMPLATES: TemplateDef[] = [
   },
 ];
 
-export const FONTS = [
-  { family: 'Inter', label: 'Inter — Sans', weights: [400, 500, 600, 700] },
-  { family: 'Space Grotesk', label: 'Space Grotesk — Display sans', weights: [400, 500, 700] },
-  { family: 'Playfair Display', label: 'Playfair Display — Serif', weights: [400, 700] },
-  { family: 'Bebas Neue', label: 'Bebas Neue — Condensed', weights: [400] },
-] as const;
+export type FontCategory = 'Sans' | 'Serif' | 'Display' | 'Handwriting' | 'Mono';
+
+export interface FontDef {
+  family: string;
+  category: FontCategory;
+  weights: number[];
+}
+
+/** Wide bundled font library — all families are SIL Open Font License. */
+export const FONTS: FontDef[] = [
+  // Sans
+  { family: 'Inter', category: 'Sans', weights: [400, 500, 600, 700] },
+  { family: 'Montserrat', category: 'Sans', weights: [400, 700] },
+  { family: 'Poppins', category: 'Sans', weights: [400, 600] },
+  { family: 'Open Sans', category: 'Sans', weights: [400, 700] },
+  { family: 'Lato', category: 'Sans', weights: [400, 700] },
+  { family: 'Raleway', category: 'Sans', weights: [400, 700] },
+  { family: 'Nunito', category: 'Sans', weights: [400, 700] },
+  { family: 'DM Sans', category: 'Sans', weights: [400, 700] },
+  { family: 'Space Grotesk', category: 'Sans', weights: [400, 500, 700] },
+  // Serif
+  { family: 'Playfair Display', category: 'Serif', weights: [400, 700] },
+  { family: 'Merriweather', category: 'Serif', weights: [400, 700] },
+  { family: 'Lora', category: 'Serif', weights: [400, 700] },
+  { family: 'Libre Baskerville', category: 'Serif', weights: [400, 700] },
+  // Display
+  { family: 'Bebas Neue', category: 'Display', weights: [400] },
+  { family: 'Anton', category: 'Display', weights: [400] },
+  { family: 'Archivo Black', category: 'Display', weights: [400] },
+  { family: 'Oswald', category: 'Display', weights: [400, 700] },
+  { family: 'Abril Fatface', category: 'Display', weights: [400] },
+  // Handwriting
+  { family: 'Caveat', category: 'Handwriting', weights: [400, 700] },
+  { family: 'Pacifico', category: 'Handwriting', weights: [400] },
+  { family: 'Permanent Marker', category: 'Handwriting', weights: [400] },
+  // Mono
+  { family: 'Space Mono', category: 'Mono', weights: [400, 700] },
+];
+
+export const FONT_CATEGORIES: FontCategory[] = ['Sans', 'Serif', 'Display', 'Handwriting', 'Mono'];
+
+/** Nearest available weight for a family (keeps the picker from dead-ending). */
+export function nearestWeight(family: string, weight: number): number {
+  const def = FONTS.find((f) => f.family === family);
+  if (!def || def.weights.length === 0) return weight;
+  return def.weights.reduce((best, w) => (Math.abs(w - weight) < Math.abs(best - weight) ? w : best), def.weights[0]);
+}

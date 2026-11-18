@@ -191,6 +191,25 @@ export async function ensureTemplatesSeeded(): Promise<void> {
   }
 }
 
+/** Pseudo design id that marks assets as the global logo library. */
+export const LOGO_LIBRARY_ID = '__logo_library__';
+
+export async function listLogos(): Promise<Asset[]> {
+  try {
+    return await getByIndex<Asset>(STORES.assets, 'designId', LOGO_LIBRARY_ID);
+  } catch (e) {
+    throw fail(e, 'Could not load your logo library.');
+  }
+}
+
+export async function deleteLogo(assetId: string): Promise<void> {
+  try {
+    await deleteKeys(STORES.assets, [assetId]);
+  } catch (e) {
+    throw fail(e, 'Could not remove that logo.');
+  }
+}
+
 export async function getMeta<T>(key: string): Promise<T | undefined> {
   const row = await getOne<{ key: string; value: T }>(STORES.meta, key);
   return row?.value;

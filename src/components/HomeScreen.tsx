@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { Design, DesignDoc } from '../domain/types';
-import { useEditor } from '../store/editorStore';
+import { useEditor, importDesignFromImage } from '../store/editorStore';
 import { loadDoc } from '../data/designRepo';
 import { preloadDesignAssets } from '../render/imageCache';
 import { ElementView, PageBackground } from './ElementView';
@@ -89,6 +89,22 @@ export function HomeScreen({ onNewDesign }: Props) {
 
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [uploadingDesign, setUploadingDesign] = useState(false);
+
+  const onUploadDesign = async (file: File | undefined) => {
+    if (!file) return;
+    setImportError(null);
+    setUploadingDesign(true);
+    try {
+      const id = await importDesignFromImage(file);
+      await openDesign(id);
+      toast('success', 'Design uploaded — layer text, images and logos on top.');
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : 'Could not upload that design.');
+    } finally {
+      setUploadingDesign(false);
+    }
+  };
 
   const onImport = async (file: File | undefined) => {
     if (!file) return;
@@ -137,6 +153,20 @@ export function HomeScreen({ onNewDesign }: Props) {
           </div>
         </div>
         <div className="home-actions">
+          <label className={`btn btn-ghost import-btn${uploadingDesign ? ' is-busy' : ''}`}>
+            {uploadingDesign ? 'Uploading…' : '⬆ Upload design'}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="sr-only"
+              aria-label="Upload an existing design image to edit"
+              onChange={(e) => {
+                void onUploadDesign(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+              disabled={uploadingDesign}
+            />
+          </label>
           <label className="btn btn-ghost import-btn">
             Import JSON
             <input
@@ -193,6 +223,20 @@ export function HomeScreen({ onNewDesign }: Props) {
             <button type="button" className="btn btn-primary" onClick={onNewDesign}>
               Create your first design
             </button>
+            <label className="btn btn-ghost">
+              Upload a design to edit
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="sr-only"
+                aria-label="Upload an existing design image to edit"
+                onChange={(e) => {
+                  void onUploadDesign(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
+                disabled={uploadingDesign}
+              />
+            </label>
           </div>
         </div>
       ) : (

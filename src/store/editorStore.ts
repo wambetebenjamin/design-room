@@ -23,18 +23,22 @@ import {
 } from '../domain/document';
 import { defaultCrop, fitCropToFrame } from '../domain/crop';
 import type { ImageCrop } from '../domain/types';
+export { LOGO_LIBRARY_ID, listLogos, repoDeleteLogo as deleteLogo };
 import {
   deleteDesign as repoDelete,
+  deleteLogo as repoDeleteLogo,
   duplicateDesign as repoDuplicate,
   ensureTemplatesSeeded,
   listDesigns,
   listAssets,
+  listLogos,
   loadDoc,
   renameDesign,
   saveAsset,
   saveDoc,
   setMeta,
   getMeta,
+  LOGO_LIBRARY_ID,
 } from '../data/designRepo';
 import { TEMPLATES } from '../domain/templates';
 import type { TemplateDef } from '../domain/types';
@@ -150,6 +154,7 @@ interface EditorState {
   addText: (preset?: TextPreset) => void;
   addShape: (shape: 'rect' | 'ellipse' | 'triangle' | 'star' | 'line') => void;
   addImageElement: (assetId: string, naturalW: number, naturalH: number) => void;
+  addLogoElement: (assetId: string, naturalW: number, naturalH: number) => void;
   deleteSelected: () => void;
   duplicateSelected: () => void;
   layerSelected: (op: 'front' | 'back' | 'forward' | 'backward') => void;
@@ -559,6 +564,31 @@ export const useEditor = create<EditorState>((set, get) => {
       set({ selectionId: el.id });
     },
 
+    addLogoElement: (assetId, naturalW, naturalH) => {
+      const { doc, currentPageId } = get();
+      if (!doc || !currentPageId) return;
+      const pw = doc.design.width;
+      const ph = doc.design.height;
+      const fw = Math.max(80, Math.round(pw * 0.28));
+      const fh = Math.max(32, Math.round(fw * (naturalH / Math.max(1, naturalW))));
+      const el: DesignElement = {
+        id: uid('el'),
+        pageId: currentPageId,
+        type: 'image',
+        x: Math.round((pw - fw) / 2),
+        y: Math.round(ph * 0.07),
+        width: fw,
+        height: fh,
+        rotation: 0,
+        opacity: 1,
+        order: 0,
+        content: { assetId, crop: defaultCrop(naturalW, naturalH, fw, fh) },
+        style: { radius: 0 },
+      };
+      get().commit((d) => addElement(d, el));
+      set({ selectionId: el.id });
+    },
+
     deleteSelected: () => {
       const { doc, selectionId } = get();
       if (!doc || !selectionId) return;
@@ -733,15 +763,19 @@ export function pageElements(doc: DesignDoc | null, pageId: string | null): Desi
   return elementsOfPage(doc, pageId);
 }
 
-export async function uploadImageFile(
-  file: File,
-): Promise<{ assetId: string; width: number; height: number }> {
-  const MAX_BYTES = 15 * 1024 * 1024;
-  const ALLOWED = ['image/png', 'image/jpeg', 'image/webp'];
-  const MAX_DIM = 12000;
-  const MAX_PIXELS = 50_000_000;
+export interface DecodedImage {
+  width: number;
+  height: number;
+}
 
-  if (!ALLOWED.includes(file.type)) {
+const MAX_BYTES = 15 * 1024 * 1024;
+const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const MAX_DIM = 12000;
+const MAX_PIXELS = 50_000_000;
+
+/** Validate + decode an uploaded image. Throws user-actionable errors. */
+export async function validateImageFile(file: File): Promise<DecodedImage> {
+  if (!ALLOWED_TYPES.includes(file.type)) {
     throw new Error('Unsupported file. Upload a PNG, JPEG or WebP image.');
   }
   if (file.size > MAX_BYTES) {
@@ -785,13 +819,86 @@ export async function uploadImageFile(
       `That image is ${width}×${height}px. The limit is ${MAX_DIM}px per side (50 megapixels) — resize it first.`,
     );
   }
+  return { width, height };
+}
 
+/** Upload an image into the current design's asset store. */
+export async function uploadImageFile(
+  file: File,
+): Promise<{ assetId: string; width: number; height: number }> {
+  const { width, height } = await validateImageFile(file);
   const doc = useEditor.getState().doc;
   if (!doc) throw new Error('Open a design before uploading images.');
-
   const assetId = uid('asset');
   await saveAsset({ id: assetId, designId: doc.design.id, name: file.name, mimeType: file.type, blob: file });
   return { assetId, width, height };
+}
+
+/** Global logo library (shared across every design in this browser). */
+export async function uploadLogo(file: File): Promise<{ assetId: string; width: number; height: number }> {
+  const { width, height } = await validateImageFile(file);
+  const assetId = uid('asset');
+  await saveAsset({ id: assetId, designId: LOGO_LIBRARY_ID, name: file.name, mimeType: file.type, blob: file });
+  return { assetId, width, height };
+}
+
+/**
+ * Build (pure) the document for an imported design image: full-bleed base
+ * layer sized to the image, ready for text / image / logo editing on top.
+ */
+export function buildDesignFromImage(
+  fileName: string,
+  width: number,
+  height: number,
+): { doc: DesignDoc; assetId: string; natural: { width: number; height: number } } {
+  // Fit huge images into the canvas limits while keeping their aspect ratio.
+  const MAX_CANVAS = 10000;
+  const shrink = Math.min(1, MAX_CANVAS / width, MAX_CANVAS / height);
+  const w = Math.max(16, Math.round(width * shrink));
+  const h = Math.max(16, Math.round(height * shrink));
+
+  const designId = uid('design');
+  const base = fileName.replace(/\.[^.]+$/, '').replace(/[^\w\- ]+/g, '').trim().slice(0, 80);
+  const now = Date.now();
+  const design: Design = {
+    id: designId,
+    title: base || 'Imported design',
+    width: w,
+    height: h,
+    createdAt: now,
+    updatedAt: now,
+    sample: false,
+  };
+  const page = createPage(designId, 0, '#ffffff');
+  const assetId = uid('asset');
+  const element: DesignElement = {
+    id: uid('el'),
+    pageId: page.id,
+    type: 'image',
+    x: 0,
+    y: 0,
+    width: w,
+    height: h,
+    rotation: 0,
+    opacity: 1,
+    order: 0,
+    content: { assetId, crop: defaultCrop(width, height, w, h) },
+    style: { radius: 0 },
+  };
+  return { doc: { design, pages: [page], elements: [element] }, assetId, natural: { width, height } };
+}
+
+/**
+ * Start a new design from an uploaded image: the image becomes a full-bleed
+ * base layer, ready for text / image / logo editing on top.
+ */
+export async function importDesignFromImage(file: File): Promise<string> {
+  const { width, height } = await validateImageFile(file);
+  const { doc, assetId } = buildDesignFromImage(file.name, width, height);
+  await saveAsset({ id: assetId, designId: doc.design.id, name: file.name, mimeType: file.type, blob: file });
+  await saveDoc(doc);
+  await setMeta('lastOpened', doc.design.id);
+  return doc.design.id;
 }
 
 export async function loadDesignAssets(designId: string): Promise<{ id: string; blob: Blob }[]> {
