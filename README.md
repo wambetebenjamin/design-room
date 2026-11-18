@@ -76,6 +76,10 @@ npm test           # 128 unit + integration tests
 - **Typography & style** — font family, size, weight, color, alignment, italic,
   line height, letter spacing; six original color palettes and four page-level
   design presets.
+- **Landing home** — an expressive, reference-inspired welcome: gradient hero
+  with drag-and-drop upload, trust badges, numbered "How it works" steps and
+  alternating feature showcases rendered with original CSS artwork (no
+  third-party assets), over a sticky glass header and dark footer.
 - **Documents** — rename, duplicate, delete, reopen; multiple pages with
   thumbnails, add/duplicate/reorder/delete; grouped undo/redo (one gesture =
   one step) with Ctrl+Z / Ctrl+Shift+Z; autosave with visible status and
