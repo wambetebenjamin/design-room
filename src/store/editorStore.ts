@@ -42,6 +42,7 @@ import {
 } from '../data/designRepo';
 import { TEMPLATES } from '../domain/templates';
 import type { TemplateDef } from '../domain/types';
+import { preloadAssets } from '../render/imageCache';
 
 export type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 export type View = 'loading' | 'home' | 'editor';
@@ -845,6 +846,25 @@ export async function uploadImageFile(
   const assetId = uid('asset');
   await saveAsset({ id: assetId, designId: doc.design.id, name: file.name, mimeType: file.type, blob: file });
   return { assetId, width, height };
+}
+
+/**
+ * Replace an image element's picture with a newly uploaded file.
+ * One undo step restores the previous picture (the old asset is kept).
+ */
+export async function replaceImageAsset(elementId: string, file: File): Promise<void> {
+  const { width, height } = await validateImageFile(file);
+  const st = useEditor.getState();
+  const doc = st.doc;
+  if (!doc) throw new Error('Open a design first.');
+  const el = doc.elements.find((e) => e.id === elementId);
+  if (!el || el.type !== 'image') throw new Error('Select an image to replace.');
+  const assetId = uid('asset');
+  await saveAsset({ id: assetId, designId: doc.design.id, name: file.name, mimeType: file.type, blob: file });
+  await preloadAssets([{ id: assetId, blob: file }]);
+  const crop = defaultCrop(width, height, el.width, el.height);
+  st.commit((d) => withElement(d, elementId, { content: { assetId, crop } }));
+  st.toast('success', 'Image replaced — Ctrl+Z to undo.');
 }
 
 /** Global logo library (shared across every design in this browser). */

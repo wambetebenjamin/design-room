@@ -32,7 +32,7 @@ npm install
 npm run dev        # local dev server
 npm run build      # typecheck + production build → dist/
 npm run preview    # serve the production build
-npm test           # 88 unit + integration tests
+npm test           # 110 unit + integration tests
 ```
 
 ## Features
@@ -41,15 +41,20 @@ npm test           # 88 unit + integration tests
   (A4 @150 DPI), presentation (1920×1080) or custom size (64–8000 px), blank or
   from one of six original templates rendered from real document data.
 - **Upload a design** — drop an existing PNG/JPEG/WebP poster or post on the
-  home screen; it opens as a full-bleed base layer with the canvas sized to the
-  image, ready for text / image / logo editing on top.
-- **Extract text from image (OCR)** — uploading a design automatically scans it
-  for text (or use **Extract text** on any selected image). Every detected line
-  becomes an editable text layer placed exactly over the original, with colour
-  and weight sampled from the pixels, size fitted to the line width, and the
-  closest bundled font matched to its shape — so the design looks unchanged
-  while the words become editable. A review step lets you edit wording, swap
-  fonts, untick lines, and choose to erase the original pixels first (gradient
+  home screen (or **import from a link**: direct image URLs, GitHub blob/raw
+  links, Google Drive share links — the browser downloads it, with a clear
+  fallback message when a host blocks cross-origin reads); it opens as a
+  full-bleed base layer with the canvas sized to the image, ready for text /
+  image / logo editing on top.
+- **Extract text & photo areas (OCR)** — uploading a design automatically
+  scans it (or use **Extract text** on any selected image). Every detected text
+  line becomes an editable text layer placed exactly over the original, with
+  colour and weight sampled from the pixels, size fitted to the line width, and
+  the closest bundled font matched to its shape. Large textured photo regions
+  are detected too (text areas excluded) and become **replaceable slots** that
+  look identical until you select one and use **Replace image** to drop in your
+  own picture. A review step lets you edit wording, swap fonts, untick lines
+  or photo areas, and choose to erase the original text pixels first (gradient
   fill from surrounding colours; one undo restores everything).
 - **Compose** — text, five geometric shapes, and uploaded PNG/JPEG/WebP images
   (15 MB / 12000 px validation). Move, resize (8 handles, Shift keeps aspect),
@@ -101,7 +106,13 @@ npm test           # 88 unit + integration tests
 - OCR recognises **English** text only and matches fonts by heuristics (case
   pattern, proportions, weight) — it cannot identify proprietary font files by
   name; every line is editable in the review step if a guess needs adjusting.
-- Verification ran as automated tests (88) plus a production-build smoke test —
-  no real browser was available in the build sandbox, so pixel-level export
-  comparisons, drag interactions and a live OCR run were verified through
-  jsdom mocks and unit tests rather than manual clicking.
+  Photo-area detection is a texture heuristic (it flags large detailed regions,
+  not semantic objects) — untick anything you don't want as a slot.
+- Link import depends on the host allowing browser downloads: GitHub raw
+  works; some sites (including some Google Drive files) block cross-origin
+  reads, in which case the app says so and suggests saving the file locally
+  and dropping it in instead.
+- Verification ran as automated tests (110) plus a production-build smoke
+  test — no real browser was available in the build sandbox, so pixel-level
+  export comparisons, drag interactions and a live OCR run were verified
+  through jsdom mocks and unit tests rather than manual clicking.

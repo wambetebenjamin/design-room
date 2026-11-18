@@ -11,7 +11,7 @@ import {
   toHex,
   luminance,
 } from './styleEst';
-import { buildTextElements, type ReviewLine } from './applyExtraction';
+import { buildTextElements, buildImageSlots, type ReviewLine, type SlotGeometry } from './applyExtraction';
 import type { TextRegion } from './extractText';
 
 function makeImage(width: number, height: number, bg: [number, number, number]): Uint8ClampedArray {
@@ -191,5 +191,41 @@ describe('buildTextElements', () => {
     expect(els).toHaveLength(1);
     expect(els[0].content).toEqual({ text: 'Yes' });
     expect(els[0].order).toBe(0);
+  });
+});
+
+describe('buildImageSlots', () => {
+  const sourceRect = { x0: 10, y0: 20, x1: 110, y1: 170 };
+
+  it('places the slot at the canvas rect with an exact source crop', () => {
+    const slots: SlotGeometry[] = [
+      { sourceRect, canvasRect: { x0: 20, y0: 40, x1: 220, y1: 340 }, include: true },
+    ];
+    const [el] = buildImageSlots(slots, 'asset_1', 'page_1', 5, 2);
+    expect(el.type).toBe('image');
+    expect(el.x).toBe(20);
+    expect(el.y).toBe(40);
+    expect(el.width).toBe(200);
+    expect(el.height).toBe(300);
+    expect(el.order).toBe(5);
+    expect(el.content).toEqual({ assetId: 'asset_1', crop: { ox: -20, oy: -40, s: 2 } });
+  });
+
+  it('uses identity mapping at scale 1 (full-bleed import)', () => {
+    const slots: SlotGeometry[] = [{ sourceRect, canvasRect: sourceRect, include: true }];
+    const [el] = buildImageSlots(slots, 'asset_1', 'page_1', 0);
+    expect(el.x).toBe(10);
+    expect(el.y).toBe(20);
+    expect(el.width).toBe(100);
+    expect(el.height).toBe(150);
+    expect(el.content).toEqual({ assetId: 'asset_1', crop: { ox: -10, oy: -20, s: 1 } });
+  });
+
+  it('skips unchecked slots', () => {
+    const slots: SlotGeometry[] = [
+      { sourceRect, canvasRect: sourceRect, include: false },
+      { sourceRect, canvasRect: sourceRect, include: true },
+    ];
+    expect(buildImageSlots(slots, 'asset_1', 'page_1', 0)).toHaveLength(1);
   });
 });

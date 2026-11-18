@@ -5,6 +5,65 @@
 import type { DesignElement } from '../domain/types';
 import { uid } from '../domain/document';
 import type { TextRegion } from './extractText';
+import type { Rect } from './styleEst';
+
+/** A detected photo area ready to become a replaceable image slot. */
+export interface PhotoSlot {
+  rect: Rect;
+  include: boolean;
+}
+
+/** A slot with coordinates resolved for the current base-image transform. */
+export interface SlotGeometry {
+  /** Region in source-image pixels (basis for the crop). */
+  sourceRect: Rect;
+  /** Same region mapped onto the canvas (basis for x/y/width/height). */
+  canvasRect: Rect;
+  include: boolean;
+}
+
+/**
+ * Build image elements that sit exactly over detected photo areas.
+ * The crop shows the same source pixels as beneath, so the design looks
+ * untouched until the user swaps in their own picture.
+ * `scale` is the base image element's crop scale (natural→frame).
+ */
+export function buildImageSlots(
+  slots: SlotGeometry[],
+  assetId: string,
+  pageId: string,
+  startOrder: number,
+  scale = 1,
+): DesignElement[] {
+  const out: DesignElement[] = [];
+  let order = startOrder;
+  for (const slot of slots) {
+    if (!slot.include) continue;
+    const x = Math.round(slot.canvasRect.x0);
+    const y = Math.round(slot.canvasRect.y0);
+    const w = Math.max(8, Math.round(slot.canvasRect.x1) - x);
+    const h = Math.max(8, Math.round(slot.canvasRect.y1) - y);
+    if (w < 8 || h < 8) continue;
+    const sx = slot.sourceRect.x0;
+    const sy = slot.sourceRect.y0;
+    out.push({
+      id: uid('el'),
+      pageId,
+      type: 'image',
+      x,
+      y,
+      width: w,
+      height: h,
+      rotation: 0,
+      opacity: 1,
+      order: order++,
+      // Frame pixel (0,0) shows source pixel (sx, sy) at the base scale.
+      content: { assetId, crop: { ox: -sx * scale, oy: -sy * scale, s: scale } },
+      style: { radius: 0 },
+    });
+  }
+  return out;
+}
 
 /** One reviewed line ready to become an editable text element. */
 export interface ReviewLine {

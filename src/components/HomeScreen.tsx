@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Design, DesignDoc } from '../domain/types';
 import { useEditor, importDesignFromImage } from '../store/editorStore';
 import { loadDoc } from '../data/designRepo';
+import { fetchImageAsFile } from '../data/urlImport';
 import { preloadDesignAssets } from '../render/imageCache';
 import { ElementView, PageBackground } from './ElementView';
 import { elementsOfPage, backgroundToCss } from '../domain/document';
@@ -91,6 +92,24 @@ export function HomeScreen({ onNewDesign }: Props) {
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [uploadingDesign, setUploadingDesign] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkValue, setLinkValue] = useState('');
+  const [linkBusy, setLinkBusy] = useState(false);
+
+  const onImportLink = async () => {
+    setImportError(null);
+    setLinkBusy(true);
+    try {
+      const file = await fetchImageAsFile(linkValue);
+      setLinkValue('');
+      setLinkOpen(false);
+      await onUploadDesign(file);
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : 'Could not download that link.');
+    } finally {
+      setLinkBusy(false);
+    }
+  };
 
   const onUploadDesign = async (file: File | undefined) => {
     if (!file) return;
@@ -99,9 +118,9 @@ export function HomeScreen({ onNewDesign }: Props) {
     try {
       const { designId, assetId, elementId } = await importDesignFromImage(file);
       await openDesign(designId);
-      // Automatic text extraction: offer the OCR review right away.
+      // Automatic extraction: text + photo areas offered right away.
       setPendingOcr({ assetId, elementId });
-      toast('success', 'Design uploaded — extracting its text now.');
+      toast('success', 'Design uploaded — reading its text and photo areas…');
     } catch (e) {
       setImportError(e instanceof Error ? e.message : 'Could not upload that design.');
     } finally {
@@ -189,6 +208,42 @@ export function HomeScreen({ onNewDesign }: Props) {
           </button>
         </div>
       </header>
+
+      <div className="link-import">
+        {!linkOpen ? (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLinkOpen(true)}>
+            🔗 Import from a link <span className="muted-inline">(GitHub, Google Drive, or any image URL)</span>
+          </button>
+        ) : (
+          <form className="link-import-form" onSubmit={(e) => { e.preventDefault(); void onImportLink(); }}>
+            <input
+              type="url"
+              inputMode="url"
+              className="link-import-input"
+              placeholder="https://… — e.g. a GitHub raw link or Drive share link"
+              aria-label="Image link to import"
+              value={linkValue}
+              onChange={(e) => setLinkValue(e.target.value)}
+              disabled={linkBusy}
+              autoFocus
+            />
+            <button type="submit" className="btn btn-primary btn-sm" disabled={linkBusy || !linkValue.trim()}>
+              {linkBusy ? 'Downloading…' : 'Import'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setLinkOpen(false);
+                setLinkValue('');
+              }}
+              disabled={linkBusy}
+            >
+              Cancel
+            </button>
+          </form>
+        )}
+      </div>
 
       {loadError && (
         <div className="banner banner-error" role="alert">
