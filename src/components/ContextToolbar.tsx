@@ -80,6 +80,7 @@ export function ContextToolbar() {
   const setPageBackground = useEditor((s) => s.setPageBackground);
   const setCropMode = useEditor((s) => s.setCropMode);
   const cropMode = useEditor((s) => s.cropMode);
+  const setPendingOcr = useEditor((s) => s.setPendingOcr);
   const askConfirm = useEditor((s) => s.askConfirm);
   const updateLive = useEditor((s) => s.updateLive);
 
@@ -230,6 +231,19 @@ export function ContextToolbar() {
           >
             {cropMode ? 'Done cropping' : 'Crop'}
           </button>
+          {!cropMode && (
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              title="Detect the text inside this image and add it as editable layers"
+              onClick={() => {
+                const content = selected.content as { assetId: string };
+                setPendingOcr({ assetId: content.assetId, elementId: selected.id });
+              }}
+            >
+              Extract text
+            </button>
+          )}
           <label className="field field-range">
             <span className="field-label">Corners</span>
             <input

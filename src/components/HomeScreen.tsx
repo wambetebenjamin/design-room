@@ -86,6 +86,7 @@ export function HomeScreen({ onNewDesign }: Props) {
   const importDoc = useEditor((s) => s.importDoc);
   const toast = useEditor((s) => s.toast);
   const refreshDesigns = useEditor((s) => s.refreshDesigns);
+  const setPendingOcr = useEditor((s) => s.setPendingOcr);
 
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
@@ -96,9 +97,11 @@ export function HomeScreen({ onNewDesign }: Props) {
     setImportError(null);
     setUploadingDesign(true);
     try {
-      const id = await importDesignFromImage(file);
-      await openDesign(id);
-      toast('success', 'Design uploaded — layer text, images and logos on top.');
+      const { designId, assetId, elementId } = await importDesignFromImage(file);
+      await openDesign(designId);
+      // Automatic text extraction: offer the OCR review right away.
+      setPendingOcr({ assetId, elementId });
+      toast('success', 'Design uploaded — extracting its text now.');
     } catch (e) {
       setImportError(e instanceof Error ? e.message : 'Could not upload that design.');
     } finally {

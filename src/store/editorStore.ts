@@ -102,6 +102,13 @@ function docFromTemplate(tpl: TemplateDef, title?: string): DesignDoc {
   return { design, pages: [page], elements };
 }
 
+interface OcrTarget {
+  assetId: string;
+  /** Image element to swap when the original text is erased (undo restores it). */
+  elementId?: string;
+}
+export type { OcrTarget };
+
 interface EditorState {
   view: View;
   loadError: string | null;
@@ -113,6 +120,9 @@ interface EditorState {
   editingTextId: string | null;
   cropMode: boolean;
   zoom: number | 'fit';
+
+  /** Set while the OCR review dialog should be open for an image asset. */
+  pendingOcr: OcrTarget | null;
 
   past: DesignDoc[];
   future: DesignDoc[];
@@ -149,6 +159,7 @@ interface EditorState {
   setEditingText: (id: string | null) => void;
   setCurrentPage: (pageId: string) => void;
   setZoom: (z: number | 'fit') => void;
+  setPendingOcr: (t: OcrTarget | null) => void;
 
   // element ops
   addText: (preset?: TextPreset) => void;
@@ -222,6 +233,7 @@ export const useEditor = create<EditorState>((set, get) => {
     editingTextId: null,
     cropMode: false,
     zoom: 'fit',
+    pendingOcr: null,
     past: [],
     future: [],
     txSnapshot: null,
@@ -480,6 +492,7 @@ export const useEditor = create<EditorState>((set, get) => {
       set({ currentPageId: pageId, selectionId: null, cropMode: false, editingTextId: null });
     },
     setZoom: (z) => set({ zoom: z }),
+    setPendingOcr: (t) => set({ pendingOcr: t }),
 
     addText: (preset) => {
       const { doc, currentPageId } = get();
@@ -890,15 +903,18 @@ export function buildDesignFromImage(
 
 /**
  * Start a new design from an uploaded image: the image becomes a full-bleed
- * base layer, ready for text / image / logo editing on top.
+ * base layer, ready for text / image / logo editing on top. Returns what the
+ * caller needs to open the design and trigger automatic text extraction.
  */
-export async function importDesignFromImage(file: File): Promise<string> {
+export async function importDesignFromImage(
+  file: File,
+): Promise<{ designId: string; assetId: string; elementId: string }> {
   const { width, height } = await validateImageFile(file);
   const { doc, assetId } = buildDesignFromImage(file.name, width, height);
   await saveAsset({ id: assetId, designId: doc.design.id, name: file.name, mimeType: file.type, blob: file });
   await saveDoc(doc);
   await setMeta('lastOpened', doc.design.id);
-  return doc.design.id;
+  return { designId: doc.design.id, assetId, elementId: doc.elements[0].id };
 }
 
 export async function loadDesignAssets(designId: string): Promise<{ id: string; blob: Blob }[]> {

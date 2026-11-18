@@ -9,9 +9,12 @@ import { LeftPanel } from './LeftPanel';
 import { CanvasStage } from './CanvasStage';
 import { PageTabs } from './PageTabs';
 import { ExportDialog } from './ExportDialog';
+import { OcrDialog } from './OcrDialog';
 
 export function EditorShell() {
   const doc = useEditor((s) => s.doc);
+  const pendingOcr = useEditor((s) => s.pendingOcr);
+  const setPendingOcr = useEditor((s) => s.setPendingOcr);
   const [exportOpen, setExportOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
 
@@ -42,6 +45,7 @@ export function EditorShell() {
       </div>
       <PageTabs />
       {exportOpen && <ExportDialog onClose={() => setExportOpen(false)} />}
+      {pendingOcr && <OcrDialog target={pendingOcr} onClose={() => setPendingOcr(null)} />}
     </div>
   );
 }
