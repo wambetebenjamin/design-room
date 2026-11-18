@@ -32,7 +32,7 @@ npm install
 npm run dev        # local dev server
 npm run build      # typecheck + production build → dist/
 npm run preview    # serve the production build
-npm test           # 110 unit + integration tests
+npm test           # 128 unit + integration tests
 ```
 
 ## Features
@@ -59,7 +59,14 @@ npm test           # 110 unit + integration tests
 - **Compose** — text, five geometric shapes, and uploaded PNG/JPEG/WebP images
   (15 MB / 12000 px validation). Move, resize (8 handles, Shift keeps aspect),
   rotate (Shift snaps to 15°), crop images (reposition + rescale inside the
-  frame), layer order, and align to page.
+  frame), layer order, and align to page. Dragging shows **smart alignment
+  guides** that snap to the page centre/edges and to other objects (hold Alt
+  to move freely).
+- **Workspace polish** — double-click the background to drop a text box at
+  that spot; Ctrl+C / Ctrl+X / Ctrl+V clipboard for objects; search your
+  designs by name with friendly "edited 5 min ago" timestamps; a zoom bar
+  with explicit 100% / Fit controls; hover outlines on canvas objects; and a
+  full keyboard-shortcuts reference behind the **?** button (or press `?`).
 - **Text section** — heading/subheading/body presets plus a gallery of 22
   bundled OFL fonts grouped by category (sans, serif, display, handwriting,
   mono); select text and tap a font to apply it.
@@ -82,7 +89,10 @@ npm test           # 110 unit + integration tests
 
 - Every control is a real button/input with labels; focus is always visible.
 - Tab to an object, then: arrows nudge (Shift = 10 px), Enter edits text,
-  Delete removes, Ctrl+D duplicates, Escape deselects / exits crop.
+  Delete removes, Ctrl+D duplicates, Ctrl+C/X/V copy/cut/paste, Escape
+  deselects / exits crop.
+- Press **?** (or the ? button in the top bar) for the full shortcuts list;
+  Ctrl+E opens export, Ctrl+S saves.
 - Number fields for X/Y/W/H/rotation give a non-drag path for every direct
   manipulation; align buttons replace drag-only alignment.
 - Tabs support arrow-key navigation; `prefers-reduced-motion` disables motion.
@@ -112,7 +122,7 @@ npm test           # 110 unit + integration tests
   works; some sites (including some Google Drive files) block cross-origin
   reads, in which case the app says so and suggests saving the file locally
   and dropping it in instead.
-- Verification ran as automated tests (110) plus a production-build smoke
+- Verification ran as automated tests (128) plus a production-build smoke
   test — no real browser was available in the build sandbox, so pixel-level
   export comparisons, drag interactions and a live OCR run were verified
   through jsdom mocks and unit tests rather than manual clicking.

@@ -108,3 +108,64 @@ describe('grouped undo/redo', () => {
     expect(useEditor.getState().future).toHaveLength(0);
   });
 });
+
+describe('clipboard and quick text', () => {
+  beforeEach(reset);
+
+  it('paste with an empty clipboard is a safe no-op', () => {
+    // Runs first so the module-level clipboard is still empty.
+    useEditor.getState().pasteClipboard();
+    const st = useEditor.getState();
+    expect(st.doc!.elements).toHaveLength(2);
+    expect(st.past).toHaveLength(0);
+    expect(st.toasts.some((t) => /Nothing to paste/.test(t.message))).toBe(true);
+  });
+
+  it('copy then paste adds an offset clone, selected and undoable as one step', () => {
+    useEditor.getState().copySelected(); // selection is 'a'
+    useEditor.getState().pasteClipboard();
+    const st = useEditor.getState();
+    expect(st.doc!.elements).toHaveLength(3);
+    const orig = st.doc!.elements.find((e) => e.id === 'a')!;
+    const pasted = st.doc!.elements.find((e) => e.id === st.selectionId)!;
+    expect(pasted.id).not.toBe('a');
+    expect(pasted.x).toBe(orig.x + 24);
+    expect(pasted.y).toBe(orig.y + 24);
+    expect(st.past).toHaveLength(1);
+
+    st.undo();
+    expect(useEditor.getState().doc!.elements).toHaveLength(2);
+  });
+
+  it('cut removes the object but paste brings it back', () => {
+    useEditor.getState().cutSelected();
+    expect(useEditor.getState().doc!.elements.map((e) => e.id)).toEqual(['b']);
+    expect(useEditor.getState().selectionId).toBeNull();
+
+    useEditor.getState().pasteClipboard();
+    const st = useEditor.getState();
+    expect(st.doc!.elements).toHaveLength(2);
+    // Pasted copy gets a fresh id and the +24 offset.
+    const pasted = st.doc!.elements.find((e) => e.id === st.selectionId)!;
+    expect(pasted).toBeTruthy();
+    expect(pasted.x).toBe(24);
+    expect(pasted.y).toBe(24);
+  });
+
+  it('addText at a double-click point centres the box on that point', () => {
+    useEditor.getState().addText(undefined, { x: 500, y: 500 });
+    const el = useEditor.getState().doc!.elements.find((e) => e.type === 'text')!;
+    expect(el.x).toBeLessThanOrEqual(500);
+    expect(el.x + el.width).toBeGreaterThanOrEqual(500);
+    expect(el.y).toBeLessThanOrEqual(500);
+    expect(el.y + el.height).toBeGreaterThanOrEqual(500);
+    expect(el.content).toEqual({ text: 'Your text here' });
+  });
+
+  it('addText without a point keeps the classic top-left placement', () => {
+    useEditor.getState().addText();
+    const el = useEditor.getState().doc!.elements.find((e) => e.type === 'text')!;
+    expect(el.x).toBe(100); // 10% of 1000
+    expect(el.y).toBe(100);
+  });
+});

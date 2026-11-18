@@ -1890,6 +1890,168 @@ textarea {
   align-self: center;
 }
 
+/* ---------- Smart snap guides ---------- */
+
+.snap-guide {
+  position: absolute;
+  background: #ff2d6f;
+  pointer-events: none;
+  z-index: 60;
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.7);
+  border-radius: 1px;
+}
+
+/* ---------- Canvas hover affordance ---------- */
+
+.el-hit:not(.is-selected):hover {
+  outline: 1.5px dashed rgba(18, 181, 169, 0.85);
+  outline-offset: 1px;
+}
+
+/* ---------- Home: section head, search, card hover ---------- */
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+
+.section-head .section-title {
+  margin: 0;
+}
+
+.search-box {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.search-input {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 34px 8px 14px;
+  font-size: 13.5px;
+  background: var(--surface);
+  color: var(--ink);
+  width: 230px;
+  max-width: 100%;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.search-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search-clear {
+  position: absolute;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  font-size: 17px;
+  line-height: 1;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.search-clear:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.design-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.design-card:hover,
+.design-card:focus-within {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(17, 20, 24, 0.1);
+  border-color: var(--accent);
+}
+
+/* ---------- Shortcuts dialog ---------- */
+
+.shortcuts-modal {
+  width: min(560px, 100%);
+}
+
+.shortcut-groups {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 26px;
+}
+
+.shortcut-groups section:last-child {
+  grid-column: 1 / -1;
+}
+
+.shortcut-list {
+  margin: 0;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.shortcut-row dt {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  flex: none;
+}
+
+.shortcut-row dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+  text-align: right;
+}
+
+.shortcut-plus {
+  color: var(--ink-3);
+  font-size: 11px;
+  margin: 0 2px;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  font-family: var(--font-ui, inherit);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--ink-2);
+}
+
+/* ---------- Zoom bar ---------- */
+
+.zoom-percent {
+  cursor: default;
+  user-select: none;
+  color: var(--ink-2);
+}
+
 /* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {

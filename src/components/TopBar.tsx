@@ -5,11 +5,12 @@ import { useEditor } from '../store/editorStore';
 
 interface Props {
   onExport: () => void;
+  onHelp: () => void;
   onTogglePanel: () => void;
   panelOpen: boolean;
 }
 
-export function TopBar({ onExport, onTogglePanel, panelOpen }: Props) {
+export function TopBar({ onExport, onHelp, onTogglePanel, panelOpen }: Props) {
   const doc = useEditor((s) => s.doc);
   const saveStatus = useEditor((s) => s.saveStatus);
   const saveError = useEditor((s) => s.saveError);
@@ -134,7 +135,16 @@ export function TopBar({ onExport, onTogglePanel, panelOpen }: Props) {
         >
           ↷
         </button>
-        <button type="button" className="btn btn-primary" onClick={onExport}>
+        <button
+          type="button"
+          className="btn btn-icon"
+          onClick={onHelp}
+          aria-label="Keyboard shortcuts"
+          title="Keyboard shortcuts (?)"
+        >
+          ?
+        </button>
+        <button type="button" className="btn btn-primary" onClick={onExport} title="Export (Ctrl+E)">
           Export
         </button>
       </div>

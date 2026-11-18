@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { DesignElement, ImageCrop } from '../domain/types';
 import { elementsOfPage } from '../domain/document';
 import { clampOffset, coverScale, moveCrop, scaleCrop } from '../domain/crop';
+import { snapMove, type SnapGuide } from '../domain/snapping';
 import { useEditor } from '../store/editorStore';
 import { ElementView, PageBackground } from './ElementView';
 import { getImageSync, useImageVersion } from '../render/imageCache';
@@ -54,7 +55,10 @@ export function CanvasStage() {
   const updateLive = useEditor((s) => s.updateLive);
   const setEditingText = useEditor((s) => s.setEditingText);
   const setCropMode = useEditor((s) => s.setCropMode);
+  const addText = useEditor((s) => s.addText);
   useImageVersion();
+
+  const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -146,10 +150,27 @@ export function CanvasStage() {
       const dx = (e.clientX - drag.startX) / zoom;
       const dy = (e.clientY - drag.startY) / zoom;
       const el = drag.startEl;
+      let nx = el.x + dx;
+      let ny = el.y + dy;
+      // Smart guides: snap to page + siblings (Alt temporarily disables).
+      if (!el.rotation && !e.altKey) {
+        const others = docNow.elements.filter((x) => x.pageId === el.pageId && x.id !== el.id);
+        const snap = snapMove(
+          { x: nx, y: ny, width: el.width, height: el.height },
+          { width: docNow.design.width, height: docNow.design.height },
+          others,
+          8,
+        );
+        nx = snap.x;
+        ny = snap.y;
+        if (snap.guides.length > 0 || snapGuides.length > 0) setSnapGuides(snap.guides);
+      } else if (snapGuides.length > 0) {
+        setSnapGuides([]);
+      }
       st.updateLive((d) => ({
         ...d,
         elements: d.elements.map((x) =>
-          x.id === el.id ? { ...x, x: Math.round((el.x + dx) * 10) / 10, y: Math.round((el.y + dy) * 10) / 10 } : x,
+          x.id === el.id ? { ...x, x: Math.round(nx * 10) / 10, y: Math.round(ny * 10) / 10 } : x,
         ),
       }));
       return;
@@ -259,6 +280,7 @@ export function CanvasStage() {
     const drag = dragRef.current;
     if (!drag) return;
     dragRef.current = null;
+    setSnapGuides([]);
     try {
       (e.target as HTMLElement).releasePointerCapture?.(drag.pointerId);
     } catch {
@@ -328,6 +350,14 @@ export function CanvasStage() {
             onPointerDown={() => {
               if (!editingTextId) select(null);
             }}
+            onDoubleClick={(e) => {
+              // Double-click empty background → quick text box at the point.
+              if (editingTextId || cropMode) return;
+              const t = e.target as HTMLElement;
+              if (!(t === e.currentTarget || t.classList.contains('page-bg'))) return;
+              const p = docPoint(e.clientX, e.clientY);
+              addText(undefined, { x: p.x, y: p.y });
+            }}
           >
             <PageBackground background={page.background} width={doc.design.width} height={doc.design.height} />
 
@@ -378,7 +408,8 @@ export function CanvasStage() {
                   aria-label={ariaLabelFor(el)}
                   aria-pressed={selected?.id === el.id}
                   onPointerDown={(e) => onElementPointerDown(e, el)}
-                  onDoubleClick={() => {
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
                     if (el.type === 'text') startTextEdit(el.id);
                   }}
                   onFocus={() => {
@@ -389,6 +420,24 @@ export function CanvasStage() {
                 </div>
               );
             })}
+
+            {snapGuides.map((g, i) =>
+              g.axis === 'v' ? (
+                <div
+                  key={`sv${i}`}
+                  className="snap-guide snap-guide-v"
+                  style={{ left: g.pos, top: g.from, height: g.to - g.from, width: 1 / zoom }}
+                  aria-hidden="true"
+                />
+              ) : (
+                <div
+                  key={`sh${i}`}
+                  className="snap-guide snap-guide-h"
+                  style={{ top: g.pos, left: g.from, width: g.to - g.from, height: 1 / zoom }}
+                  aria-hidden="true"
+                />
+              ),
+            )}
 
             {selected && !isCropSubject && !editingTextId && (
               <SelectionOverlay
@@ -405,13 +454,16 @@ export function CanvasStage() {
         <button type="button" className="btn btn-icon" aria-label="Zoom out" title="Zoom out" onClick={() => setZoom(Math.max(0.05, Math.round((zoom - 0.1) * 100) / 100))}>
           −
         </button>
-        <button type="button" className="btn btn-ghost zoom-label" title="Reset zoom to fit" onClick={() => setZoom('fit')}>
+        <span className="zoom-label zoom-percent" title="Current zoom level">
           {Math.round(zoom * 100)}%
-        </button>
+        </span>
         <button type="button" className="btn btn-icon" aria-label="Zoom in" title="Zoom in" onClick={() => setZoom(Math.min(4, Math.round((zoom + 0.1) * 100) / 100))}>
           +
         </button>
-        <button type="button" className="btn btn-ghost" onClick={() => setZoom('fit')}>
+        <button type="button" className="btn btn-ghost" title="Zoom to 100%" onClick={() => setZoom(1)}>
+          100%
+        </button>
+        <button type="button" className="btn btn-ghost" title="Fit page to screen" onClick={() => setZoom('fit')}>
           Fit
         </button>
       </div>

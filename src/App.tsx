@@ -110,6 +110,29 @@ function useGlobalShortcuts() {
         s.duplicateSelected();
         return;
       }
+      if (mod && e.key.toLowerCase() === 'c') {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        s.copySelected();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 'x') {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        s.cutSelected();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 'v') {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        s.pasteClipboard();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        s.setExportOpen(true);
+        return;
+      }
 
       if (isEditableTarget(e.target)) return;
 

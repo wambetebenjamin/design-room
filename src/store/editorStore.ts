@@ -124,6 +124,8 @@ interface EditorState {
 
   /** Set while the OCR review dialog should be open for an image asset. */
   pendingOcr: OcrTarget | null;
+  /** Export dialog visibility (Ctrl+E). */
+  exportOpen: boolean;
 
   past: DesignDoc[];
   future: DesignDoc[];
@@ -161,14 +163,18 @@ interface EditorState {
   setCurrentPage: (pageId: string) => void;
   setZoom: (z: number | 'fit') => void;
   setPendingOcr: (t: OcrTarget | null) => void;
+  setExportOpen: (on: boolean) => void;
 
   // element ops
-  addText: (preset?: TextPreset) => void;
+  addText: (preset?: TextPreset, at?: { x: number; y: number }) => void;
   addShape: (shape: 'rect' | 'ellipse' | 'triangle' | 'star' | 'line') => void;
   addImageElement: (assetId: string, naturalW: number, naturalH: number) => void;
   addLogoElement: (assetId: string, naturalW: number, naturalH: number) => void;
   deleteSelected: () => void;
   duplicateSelected: () => void;
+  copySelected: () => void;
+  cutSelected: () => void;
+  pasteClipboard: () => void;
   layerSelected: (op: 'front' | 'back' | 'forward' | 'backward') => void;
   alignSelected: (align: 'left' | 'centerH' | 'right' | 'top' | 'middleV' | 'bottom') => void;
   patchSelected: (patch: Partial<DesignElement>) => void;
@@ -191,6 +197,8 @@ interface EditorState {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+/** In-memory element clipboard for Ctrl+C / Ctrl+X / Ctrl+V (not persisted). */
+let elementClipboard: DesignElement | null = null;
 
 export const useEditor = create<EditorState>((set, get) => {
   const scheduleSave = () => {
@@ -235,6 +243,7 @@ export const useEditor = create<EditorState>((set, get) => {
     cropMode: false,
     zoom: 'fit',
     pendingOcr: null,
+    exportOpen: false,
     past: [],
     future: [],
     txSnapshot: null,
@@ -494,21 +503,31 @@ export const useEditor = create<EditorState>((set, get) => {
     },
     setZoom: (z) => set({ zoom: z }),
     setPendingOcr: (t) => set({ pendingOcr: t }),
+    setExportOpen: (on) => set({ exportOpen: on }),
 
-    addText: (preset) => {
+    addText: (preset, at) => {
       const { doc, currentPageId } = get();
       if (!doc || !currentPageId) return;
       const w = doc.design.width;
       const h = doc.design.height;
       const fontSize =
         preset?.size ?? Math.max(24, Math.round(Math.min(w, h) * (preset?.sizeFactor ?? 0.06)));
+      // Position: default grid spot, or centred on a double-click point.
+      let x = Math.round(w * 0.1);
+      let y = Math.round(h * 0.1);
+      let boxW = Math.round(w * 0.8);
+      if (at) {
+        boxW = Math.min(Math.round(w * 0.6), 520);
+        x = Math.round(Math.min(Math.max(0, at.x - boxW / 2), Math.max(0, w - boxW)));
+        y = Math.round(Math.min(Math.max(0, at.y - fontSize * 0.7), Math.max(0, h - fontSize * 1.4)));
+      }
       const el: DesignElement = {
         id: uid('el'),
         pageId: currentPageId,
         type: 'text',
-        x: Math.round(w * 0.1),
-        y: Math.round(h * 0.1),
-        width: Math.round(w * 0.8),
+        x,
+        y,
+        width: boxW,
         height: Math.round(fontSize * 1.4),
         rotation: 0,
         opacity: 1,
@@ -622,6 +641,52 @@ export const useEditor = create<EditorState>((set, get) => {
         return r.doc;
       });
       set({ selectionId: newId });
+    },
+
+    copySelected: () => {
+      const { doc, selectionId, toast } = get();
+      const el = doc?.elements.find((e) => e.id === selectionId);
+      if (!el) {
+        toast('info', 'Select an object to copy first.');
+        return;
+      }
+      elementClipboard = structuredClone(el);
+      toast('info', 'Copied — press Ctrl+V to paste.');
+    },
+
+    cutSelected: () => {
+      const { doc, selectionId, toast } = get();
+      const el = selectionId ? doc?.elements.find((e) => e.id === selectionId) : undefined;
+      if (!selectionId || !el) {
+        toast('info', 'Select an object to cut first.');
+        return;
+      }
+      elementClipboard = structuredClone(el);
+      get().commit((d) => removeElement(d, selectionId));
+      set({ selectionId: null, cropMode: false });
+      toast('info', 'Cut — press Ctrl+V to paste.');
+    },
+
+    pasteClipboard: () => {
+      const st = get();
+      if (!elementClipboard) {
+        st.toast('info', 'Nothing to paste yet — copy an object with Ctrl+C.');
+        return;
+      }
+      const doc = st.doc;
+      const pageId = st.currentPageId;
+      if (!doc || !pageId) return;
+      const copy: DesignElement = {
+        ...structuredClone(elementClipboard),
+        id: uid('el'),
+        pageId,
+        x: elementClipboard.x + 24,
+        y: elementClipboard.y + 24,
+        order: 0,
+      };
+      st.commit((d) => addElement(d, copy));
+      set({ selectionId: copy.id, cropMode: false, editingTextId: null });
+      st.toast('success', 'Pasted.');
     },
 
     layerSelected: (op) => {

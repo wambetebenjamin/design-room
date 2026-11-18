@@ -9,6 +9,7 @@ import { preloadDesignAssets } from '../render/imageCache';
 import { ElementView, PageBackground } from './ElementView';
 import { elementsOfPage, backgroundToCss } from '../domain/document';
 import { validateDocument, toDesignDoc } from '../domain/validate';
+import { filterDesigns, formatEditedTime } from '../domain/designList';
 
 interface Props {
   onNewDesign: () => void;
@@ -95,6 +96,7 @@ export function HomeScreen({ onNewDesign }: Props) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkValue, setLinkValue] = useState('');
   const [linkBusy, setLinkBusy] = useState(false);
+  const [query, setQuery] = useState('');
 
   const onImportLink = async () => {
     setImportError(null);
@@ -300,47 +302,86 @@ export function HomeScreen({ onNewDesign }: Props) {
       ) : (
         <>
           <section aria-label="Your designs">
-            <h2 className="section-title">Your designs</h2>
-            <ul className="design-grid">
-              {designs.map((d) => (
-                <li key={d.id} className="design-card">
+            <div className="section-head">
+              <h2 className="section-title">Your designs</h2>
+              <label className="search-box">
+                <span className="sr-only">Search designs by name</span>
+                <input
+                  type="search"
+                  className="search-input"
+                  placeholder="Search designs…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                {query && (
                   <button
                     type="button"
-                    className="design-open"
-                    onClick={() => void openDesign(d.id)}
-                    aria-label={`Open ${d.title}`}
+                    className="search-clear"
+                    aria-label="Clear search"
+                    onClick={() => setQuery('')}
                   >
-                    <DesignThumb design={d} />
-                    <span className="design-meta">
-                      <strong>
-                        {d.title}
-                        {d.sample && <em className="badge-sample">Sample</em>}
-                      </strong>
-                      <small>
-                        {d.width} × {d.height} · {new Date(d.updatedAt).toLocaleDateString()}
-                      </small>
-                    </span>
+                    ×
                   </button>
-                  <div className="design-actions">
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => void duplicateDesignById(d.id)}
-                    >
-                      Duplicate
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm btn-danger"
-                      onClick={() => void onDelete(d)}
-                      aria-label={`Delete ${d.title}`}
-                    >
-                      Delete
-                    </button>
+                )}
+              </label>
+            </div>
+            {(() => {
+              const visible = filterDesigns(designs, query);
+              if (visible.length === 0) {
+                return (
+                  <div className="empty-mini" role="status">
+                    No designs match “{query.trim()}”.
+                    <div className="empty-actions">
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setQuery('')}>
+                        Clear search
+                      </button>
+                    </div>
                   </div>
-                </li>
-              ))}
-            </ul>
+                );
+              }
+              return (
+                <ul className="design-grid">
+                  {visible.map((d) => (
+                    <li key={d.id} className="design-card">
+                      <button
+                        type="button"
+                        className="design-open"
+                        onClick={() => void openDesign(d.id)}
+                        aria-label={`Open ${d.title}`}
+                      >
+                        <DesignThumb design={d} />
+                        <span className="design-meta">
+                          <strong>
+                            {d.title}
+                            {d.sample && <em className="badge-sample">Sample</em>}
+                          </strong>
+                          <small>
+                            {d.width} × {d.height} · edited {formatEditedTime(d.updatedAt)}
+                          </small>
+                        </span>
+                      </button>
+                      <div className="design-actions">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => void duplicateDesignById(d.id)}
+                        >
+                          Duplicate
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm btn-danger"
+                          onClick={() => void onDelete(d)}
+                          aria-label={`Delete ${d.title}`}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              );
+            })()}
           </section>
         </>
       )}
