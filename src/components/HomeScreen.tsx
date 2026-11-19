@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Design, DesignDoc } from '../domain/types';
 import { useEditor, importDesignFromImage } from '../store/editorStore';
+import { loadExampleBanner } from '../samples/keemsyBanner';
 import { loadDoc } from '../data/designRepo';
 import { fetchImageAsFile } from '../data/urlImport';
 import { preloadDesignAssets } from '../render/imageCache';
@@ -97,6 +98,7 @@ export function HomeScreen({ onNewDesign }: Props) {
   const [linkValue, setLinkValue] = useState('');
   const [linkBusy, setLinkBusy] = useState(false);
   const [query, setQuery] = useState('');
+  const [sampleBusy, setSampleBusy] = useState(false);
 
   const onImportLink = async () => {
     setImportError(null);
@@ -127,6 +129,17 @@ export function HomeScreen({ onNewDesign }: Props) {
       setImportError(e instanceof Error ? e.message : 'Could not upload that design.');
     } finally {
       setUploadingDesign(false);
+    }
+  };
+
+  const onOpenSample = async () => {
+    setSampleBusy(true);
+    try {
+      await loadExampleBanner();
+    } catch (e) {
+      toast('error', e instanceof Error ? e.message : 'Could not open the example banner.');
+    } finally {
+      setSampleBusy(false);
     }
   };
 
@@ -271,6 +284,8 @@ export function HomeScreen({ onNewDesign }: Props) {
         onNewDesign={onNewDesign}
         onUpload={onUploadDesign}
         uploading={uploadingDesign}
+        onOpenSample={onOpenSample}
+        sampleBusy={sampleBusy}
       />
 
       {designs.length > 0 && (
@@ -389,11 +404,15 @@ function Hero({
   onNewDesign,
   onUpload,
   uploading,
+  onOpenSample,
+  sampleBusy,
 }: {
   hasDesigns: boolean;
   onNewDesign: () => void;
   onUpload: (file: File | undefined) => void;
   uploading: boolean;
+  onOpenSample: () => void;
+  sampleBusy: boolean;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -502,6 +521,14 @@ function Hero({
           />
         </label>
         <p className="hero-drop-hint">Or paste a GitHub / Drive link above.</p>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm sample-banner-btn"
+          onClick={() => void onOpenSample()}
+          disabled={sampleBusy}
+        >
+          {sampleBusy ? 'Preparing…' : 'Open the Keemsy banner — ready to edit'}
+        </button>
       </div>
     </section>
   );

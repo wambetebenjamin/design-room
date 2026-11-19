@@ -2123,6 +2123,10 @@ textarea {
   color: var(--ink-3);
 }
 
+.sample-banner-btn {
+  margin-top: 6px;
+}
+
 /* ---------- How it works -------------------------------------------------- */
 
 .how {

@@ -46,6 +46,13 @@ npm test           # 128 unit + integration tests
   fallback message when a host blocks cross-origin reads); it opens as a
   full-bleed base layer with the canvas sized to the image, ready for text /
   image / logo editing on top.
+- **One-click editable example** — the home screen's **Open the Keemsy
+  banner** button loads a bundled consulting roll-up (OCR precomputed offline
+  by `scripts/precomputeKeemsy.ts`, re-run with `npm run sample:banner`):
+  every text line opens as a styled, editable layer and the photo area as a
+  replaceable slot, sitting over the untouched artwork — one Ctrl+Z removes
+  the layers and restores the pristine image. The banner images live in
+  `public/samples/` and can be deleted if you don't want them.
 - **Extract text & photo areas (OCR)** — uploading a design automatically
   scans it (or use **Extract text** on any selected image). Every detected text
   line becomes an editable text layer placed exactly over the original, with

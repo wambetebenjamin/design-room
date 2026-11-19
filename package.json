@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "sample:banner": "esbuild scripts/precomputeKeemsy.ts --bundle --platform=node --format=cjs --packages=external --outfile=scripts/.precompute.cjs && node scripts/.precompute.cjs"
   },
   "dependencies": {
     "@fontsource/abril-fatface": "^5.3.0",
@@ -40,11 +41,15 @@
     "zustand": "^5.0.1"
   },
   "devDependencies": {
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@types/node": "^26.6.6",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "fake-indexeddb": "^6.2.8",
+    "jpeg-js": "^0.4.4",
     "jsdom": "^31.0.1",
+    "opentype.js": "^2.0.0",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
     "vitest": "^2.1.8"
